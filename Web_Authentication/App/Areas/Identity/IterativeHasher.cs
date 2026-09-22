@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 
 namespace App.Areas.Identity;
@@ -20,7 +21,24 @@ internal class IterativeHasher : IPasswordHasher<IdentityUser> {
         // todo: Use a random 32-byte salt. Use a 32-byte digest.
         // todo: Use 100,000 iterations and the SHA256 algorithm.
         // todo: Encode as "Base64(salt):Base64(digest)"
-        return string.Empty;
+
+        byte[] salt = RandomNumberGenerator.GetBytes(32); 
+        byte[] passwordBytes = Encoding.ASCII.GetBytes(password);
+        byte[] saltedPassword = new byte[salt.Length + passwordBytes.Length];
+
+        Array.Copy(salt, 0, saltedPassword, 0, salt.Length);
+        Array.Copy(passwordBytes, 0, saltedPassword, salt.Length, passwordBytes.Length);
+        
+
+        byte[] digest = SHA256.HashData(saltedPassword);
+
+        for (int i = 0; i < 100000; i++) {
+            digest = SHA256.HashData(digest);
+        }
+
+        string rv = Utils.EncodeSaltAndDigest(salt, digest);
+
+        return rv;
     }
 
     /// <summary>
@@ -31,7 +49,29 @@ internal class IterativeHasher : IPasswordHasher<IdentityUser> {
     /// <returns></returns>
     public PasswordVerificationResult VerifyHashedPassword(IdentityUser user, string hashedPassword, string providedPassword) {
         // todo: Verify that the given password matches the hashedPassword (as originally encoded by HashPassword)
-        return PasswordVerificationResult.Failed;
+        (byte[] salt, byte[] originalDigest) = Utils.DecodeSaltAndDigest(hashedPassword);
+        
+        byte[] passwordBytes = Encoding.ASCII.GetBytes(providedPassword);
+        byte[] saltedPassword = new byte[salt.Length + passwordBytes.Length];
+
+        Array.Copy(salt, 0, saltedPassword, 0, salt.Length);
+        Array.Copy(passwordBytes, 0, saltedPassword, salt.Length, passwordBytes.Length);
+        
+
+        byte[] newDigest = SHA256.HashData(saltedPassword);
+
+        for (int i = 0; i < 100000; i++) {
+            newDigest = SHA256.HashData(newDigest);
+        }
+
+        bool verified = CryptographicOperations.FixedTimeEquals(newDigest, originalDigest);
+
+        if (!verified) {
+            return PasswordVerificationResult.Failed;
+        }
+        else {
+            return PasswordVerificationResult.Success;
+        }
     }
 
 }

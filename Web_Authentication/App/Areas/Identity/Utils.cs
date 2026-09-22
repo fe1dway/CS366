@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Text;
 
 namespace App.Areas.Identity;
@@ -17,7 +18,12 @@ internal static class Utils {
     /// <returns>Encoded salt and digest.</returns>
     public static string EncodeSaltAndDigest(byte[] salt, byte[] digest) {
         // todo: Encode as "Base64(salt):Base64(digest)"
-        return string.Empty;
+        string base64Salt = Convert.ToBase64String(salt);
+        string base64Digest = Convert.ToBase64String(digest);
+
+        string encoded = base64Salt + ":" + base64Digest;
+
+        return encoded;
     }
 
     /// <summary>
@@ -28,7 +34,13 @@ internal static class Utils {
     /// <returns>Decoded salt and digest.</returns>
     public static (byte[], byte[]) DecodeSaltAndDigest(string value) {
         // todo: Decode as "Base64(salt):Base64(digest)"
-        return (Array.Empty<byte>(), Array.Empty<byte>());
+
+        string[] valueParts = value.Split(':'); 
+
+        byte[] salt = Convert.FromBase64String(valueParts[0]);
+        byte[] digest = Convert.FromBase64String(valueParts[1]);
+
+        return (salt, digest);
     }
 
 }
