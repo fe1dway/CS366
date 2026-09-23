@@ -36,9 +36,9 @@ internal class IterativeHasher : IPasswordHasher<IdentityUser> {
             digest = SHA256.HashData(digest);
         }
 
-        string rv = Utils.EncodeSaltAndDigest(salt, digest);
+        string encodedString = Utils.EncodeSaltAndDigest(salt, digest);
 
-        return rv;
+        return encodedString;
     }
 
     /// <summary>
@@ -58,19 +58,19 @@ internal class IterativeHasher : IPasswordHasher<IdentityUser> {
         Array.Copy(passwordBytes, 0, saltedPassword, salt.Length, passwordBytes.Length);
         
 
-        byte[] newDigest = SHA256.HashData(saltedPassword);
+        byte[] providedDigest = SHA256.HashData(saltedPassword);
 
         for (int i = 0; i < 100000; i++) {
-            newDigest = SHA256.HashData(newDigest);
+            providedDigest = SHA256.HashData(providedDigest);
         }
 
-        bool verified = CryptographicOperations.FixedTimeEquals(newDigest, originalDigest);
+        bool verified = CryptographicOperations.FixedTimeEquals(providedDigest, originalDigest);
 
-        if (!verified) {
-            return PasswordVerificationResult.Failed;
+        if (verified) {
+            return PasswordVerificationResult.Success;
         }
         else {
-            return PasswordVerificationResult.Success;
+            return PasswordVerificationResult.Failed;
         }
     }
 

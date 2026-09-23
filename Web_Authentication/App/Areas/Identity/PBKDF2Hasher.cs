@@ -1,4 +1,6 @@
+using System.Runtime.Intrinsics.Arm;
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 
 namespace App.Areas.Identity;
@@ -20,7 +22,13 @@ internal class PBKDF2Hasher : IPasswordHasher<IdentityUser> {
         // todo: Use a random 32-byte salt. Use a 32-byte digest.
         // todo: Use 100,000 iterations and the SHA256 algorithm.
         // todo: Encode as "Base64(salt):Base64(digest)"
-        return string.Empty;
+        byte[] salt = RandomNumberGenerator.GetBytes(32);
+       
+        byte[] digest = Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, HashAlgorithmName.SHA256, 32);
+
+        string encodedString = Utils.EncodeSaltAndDigest(salt, digest);
+
+        return encodedString;
     }
 
     /// <summary>
@@ -31,7 +39,20 @@ internal class PBKDF2Hasher : IPasswordHasher<IdentityUser> {
     /// <returns></returns>
     public PasswordVerificationResult VerifyHashedPassword(IdentityUser user, string hashedPassword, string providedPassword) {
         // todo: Verify that the given password matches the hashedPassword (as originally encoded by HashPassword)
-        return PasswordVerificationResult.Failed;
+        (byte[] salt, byte[] originalDigest) = Utils.DecodeSaltAndDigest(hashedPassword);
+
+        byte[] passwordBytes = Encoding.ASCII.GetBytes(providedPassword);
+
+        byte[] providedDigest = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, 100000, HashAlgorithmName.SHA256, 32);
+
+        bool verified = CryptographicOperations.FixedTimeEquals(providedDigest, originalDigest);
+
+        if (verified) {
+            return PasswordVerificationResult.Success;
+        }
+        else {
+            return PasswordVerificationResult.Failed; 
+        }
     }
 
 }
